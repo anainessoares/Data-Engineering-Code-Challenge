@@ -1,6 +1,14 @@
 from pyspark.sql.types import StructType
 from pyspark.sql import SparkSession, functions as F
 import logging
+from pyspark.sql.types import (
+    StructType,
+    StructField,
+    StringType,
+    IntegerType,
+    FloatType,
+    DateType,
+)
 
 
 class PreparationValidationData:
@@ -49,12 +57,7 @@ class PreparationValidationData:
 
         return df
 
-    def data_drop_duplicates(
-        self,
-        df,
-        subset: list = None,
-        action: str = "drop"
-        ):
+    def data_drop_duplicates(self, df, subset: list = None, action: str = "drop"):
         """
         Handle duplicate rows in a DataFrame.
 
@@ -87,45 +90,47 @@ class PreparationValidationData:
 
         :param df: Input DataFrame.
         :param schema: Dictionary of column names and their desired data types
-        :param error_handling: Specifies how to handle rows with conversion errors:
-            - "remove": Drop rows where conversion fails
         :return: DataFrame with enforced schema and errors handled based on the specified option.
         """
         logging.info("Step 2.3 - Enforcing data schema.")
         schema_dict = {field.name: field.dataType for field in schema}
+
         for col_name, desired_dtype in schema_dict.items():
             if col_name not in df.columns:
                 logging.warning(f"Column '{col_name}' not found, skipping.")
                 continue
 
+            # Handle DateType
             if str(desired_dtype) == "DateType()":
+                date_formats = [
+                    "yyyy-MM-dd",
+                    "MM/dd/yyyy",
+                    "yyyy/MM/dd",
+                    "dd-MM-yyyy",
+                    "MMMM dd, yyyy",
+                ]
+
                 df = df.withColumn(
                     col_name,
-                    F.when(
-                        F.to_date(F.col("transaction_date"), "yyyy-MM-dd").isNotNull(),
-                        F.to_date(F.col("transaction_date"), "yyyy-MM-dd"),
-                    )
-                    .when(
-                        F.to_date(F.col("transaction_date"), "MM/dd/yyyy").isNotNull(),
-                        F.to_date(F.col("transaction_date"), "MM/dd/yyyy"),
-                    )
-                    .when(
-                        F.to_date(F.col("transaction_date"), "yyyy/MM/dd").isNotNull(),
-                        F.to_date(F.col("transaction_date"), "yyyy/MM/dd"),
-                    )
-                    .when(
-                        F.to_date(F.col("transaction_date"), "dd-MM-yyyy").isNotNull(),
-                        F.to_date(F.col("transaction_date"), "dd-MM-yyyy"),
-                    )
-                    .when(
-                        F.to_date(
-                            F.col("transaction_date"), "MMMM dd, yyyy"
-                        ).isNotNull(),
-                        F.to_date(F.col("transaction_date"), "MMMM dd, yyyy"),
-                    )
-                    .otherwise(None),
+                    F.coalesce(
+                        *[F.to_date(F.col(col_name), fmt) for fmt in date_formats]
+                    ),
                 )
+            # Handle IntegerType
+            elif isinstance(desired_dtype, IntegerType):
+                df = df.withColumn(col_name, F.col(col_name).cast(IntegerType()))
+
+            # Handle FloatType
+            elif isinstance(desired_dtype, FloatType):
+                df = df.withColumn(col_name, F.col(col_name).cast(FloatType()))
+
+            # Handle StringType
+            elif isinstance(desired_dtype, StringType):
+                df = df.withColumn(col_name, F.col(col_name).cast(StringType()))
             else:
-                df = df.withColumn(col_name, F.col(col_name).cast(desired_dtype))
+                logging.warning(
+                    f"Column '{col_name}' casting not defined in the code, skipping."
+                )
+                continue
 
         return df
