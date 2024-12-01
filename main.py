@@ -12,48 +12,47 @@ from utils.data_loading import LoadingData
 from utils.data_preparation import PreparationValidationData
 from utils.data_transformation import TransformingData
 
-# Logging configurations
+# Configure logging
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
 )
 
 
 def main():
+    """
+    Main function to run the data pipeline.
+    It orchestrates the loading, preparation, and transformation of data.
+    """
     logging.info("Initializing SparkSession.")
-    spark = (
-        SparkSession.builder.appName("DA Challenge")
-        # .config("spark.sql.shuffle.partitions", "200")
-        # .config("spark.executor.memory", "4g")
-        # .config("spark.driver.memory", "2g")
-        # .config("spark.dynamicAllocation.enabled", "true")
-        # .config("spark.dynamicAllocation.maxExecutors", "50")
-        .getOrCreate()
-    )
+    # Create a SparkSession for data processing
+    spark = SparkSession.builder.appName("DA Challenge").getOrCreate()
 
-    ########### Initialize LoadingData
+    ########### Data Loading
+    logging.info("Step 1: Loading data.")
+    # Initialize data loader
     data_loader = LoadingData(spark)
 
-    # Raw data paths
+    # Define paths for raw data files
     sales_file = "raw_data/sales_uuid.csv"
     products_file = "raw_data/products_uuid.csv"
     stores_file = "raw_data/stores_uuid.csv"
 
-    # Load datasets
+    # Load CSV files into DataFrames
     sales_df = data_loader.read_csv(sales_file)
     products_df = data_loader.read_csv(products_file)
     stores_df = data_loader.read_csv(stores_file)
 
-    ############ Preparations and validations of datasets
+    ########### Data Preparation and Validation
+    logging.info("Step 2: Preparing and validating data.")
+    # Initialize data preparation and validation
     data_prep = PreparationValidationData(spark)
 
-    # Handle nulls
+    # Handle null values in the DataFrames
     nulls_sales_df = data_prep.data_handle_nulls(sales_df, strategy="drop")
-
     nulls_products_df = data_prep.data_handle_nulls(products_df, strategy="drop")
-
     nulls_stores_df = data_prep.data_handle_nulls(stores_df, strategy="drop")
 
-    # Handle duplicates
+    # Handle duplicate records in the DataFrames
     dup_sales_df = data_prep.data_drop_duplicates(
         nulls_sales_df, subset=["transaction_id"]
     )
@@ -62,7 +61,7 @@ def main():
     )
     dup_stores_df = data_prep.data_drop_duplicates(nulls_stores_df, subset=["store_id"])
 
-    # Enforce data types
+    # Define schemas for data type enforcement
     sales_schema = StructType(
         [
             StructField("transaction_id", StringType(), True),
@@ -95,26 +94,24 @@ def main():
     )
     dim_stores_df = data_prep.data_enforce_type(dup_stores_df, schema=stores_schema)
 
-    ########### Transformations
-    # Initialize Transformations
-    # Create an instance of TransformingData
+    ########### Data Transformation
+    logging.info("Step 3: Transforming data.")
+    # Initialize data transformation
     data_transformer = TransformingData(spark)
 
-
+    # Perform data transformations
     dim_sales_aggregation = data_transformer.dim_sales_aggregation(
         dim_sales_df, dim_products_df
     )
-
     dim_total_quantity = data_transformer.dim_total_quantity(
         dim_sales_df, dim_products_df
     )
-
     dim_enrich_data = data_transformer.dim_enrich_data(
         dim_sales_df, dim_products_df, dim_stores_df
     )
-
     dim_price_category = data_transformer.dim_price_category(dim_enrich_data)
 
+    # Log completion of the data pipeline
     logging.info("Data pipeline completed successfully.")
 
 
