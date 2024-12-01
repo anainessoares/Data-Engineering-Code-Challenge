@@ -1,6 +1,5 @@
 from pyspark.sql.types import StructType
 from pyspark.sql import SparkSession, functions as F
-from datetime import datetime
 import logging
 
 
@@ -54,18 +53,15 @@ class PreparationValidationData:
         self,
         df,
         subset: list = None,
-        action: str = "drop",
-        flag_column: str = "is_duplicate",
-    ):
+        action: str = "drop"
+        ):
         """
         Handle duplicate rows in a DataFrame.
 
         :param df: Input DataFrame
         :param subset: List of columns to check for duplicates, if none, checks the entire row
         :param action: Action to take for duplicates:
-            - "drop": Remove duplicate rows (default)
-            - "flag": Add a boolean column to indicate duplicate rows
-        :param flag_column: Name of the flag column to add if action="flag".
+            - "drop": Remove duplicate rows
         :return: DataFrame with duplicates handled based on the action.
         """
         logging.info("Step 2.2 - Checking for duplicate rows.")
@@ -78,8 +74,6 @@ class PreparationValidationData:
         if action == "drop":
             logging.info("Dropping duplicate rows.")
             df = df.dropDuplicates(subset=subset)
-        elif action == "flag":
-            df = df.withColumn(flag_column, F.lit(False))
         else:
             raise ValueError(f"Unsupported action: {action}")
 
@@ -92,11 +86,9 @@ class PreparationValidationData:
         Enforce column data types on a DataFrame with validation and error handling.
 
         :param df: Input DataFrame.
-        :param schema: Dictionary of column names and their desired data types (e.g., "int", "string").
+        :param schema: Dictionary of column names and their desired data types
         :param error_handling: Specifies how to handle rows with conversion errors:
             - "remove": Drop rows where conversion fails
-            - "flag": Add a flag column indicating conversion failure for each affected column (default)
-        :param flag_column_suffix: Suffix for the flag columns if error_handling="flag"
         :return: DataFrame with enforced schema and errors handled based on the specified option.
         """
         logging.info("Step 2.3 - Enforcing data schema.")
@@ -135,9 +127,5 @@ class PreparationValidationData:
                 )
             else:
                 df = df.withColumn(col_name, F.col(col_name).cast(desired_dtype))
-
-        # Add the current timestamp
-        current_timestamp = datetime.now().isoformat()
-        df = df.withColumn("update_timestamp", F.lit(current_timestamp))
 
         return df

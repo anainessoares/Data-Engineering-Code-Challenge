@@ -10,7 +10,7 @@ def spark():
     Create and return a SparkSession for the tests
     """
 
-    return SparkSession.builder.appName("TestSession").getOrCreate()
+    return SparkSession.builder.appName("TestsSession").getOrCreate()
 
 
 @pytest.fixture
@@ -23,28 +23,23 @@ def data_loader(spark):
 
 def test_read_csv(data_loader, spark):
     """
-    Test reading a CSV file into a DataFrame
+    Test reading a CSV file into a DataFrame.
     """
-
     # Sample path for the CSV data
     test_products_csv_path = "tests/products.csv"
 
-    # Loading the data
+    # Loading the data using the data loader
     df_products = data_loader.read_csv(test_products_csv_path, header=True)
 
-    # DataFrame is not empty
-    assert df_products.count() > 0, "Products DataFrame should not be empty."
-
-    # Expected DataFrame
-    expected_products_columns = ["product_id", "product_name", "category"]
-    assert (
-        df_products.columns == expected_products_columns
-    ), "Products DataFrame schema mismatch."
-
-    # Create an expected DataFrame for comparison
-    expected_data = [
-        ("ff93357b-d490-4dc5-a773-7183a0c3e199", "Chicken", "Meat"),
-        ("ff93357b-d490-4dc5-a773-7183a0c3e100", "Olive Oil", "Condiments"),
+    # Expected DataFrame creation
+    expected_products_data = [
+        ('776efa5e-5fc1-499c-af9f-eb6ac465234c','Organic Apples','Fruit'),
+        ('ed7d48cf-14df-4442-a59f-2b9b25afacc7','Almond Milk','Dairy'),
+        ('06834baa-35cc-49d8-8379-bc4e2ccbd61a','Whole Wheat Bread','Bakery')
     ]
-    expected_df = spark.createDataFrame(expected_data, expected_products_columns)
+    expected_products_columns = ["product_id", "product_name", "category"]
+    expected_df = spark.createDataFrame(expected_products_data, expected_products_columns)
+
+    # Assert equality of the DataFrames
     assert_df_equality(df_products, expected_df, ignore_row_order=True)
+

@@ -73,9 +73,6 @@ class TransformingData:
             "for each product category, grouped by month."
         )
 
-        df_1 = df_1.drop("update_timestamp")
-        df_2 = df_2.drop("update_timestamp")
-
         dim_sales_prod = df_1.join(df_2, on="product_id")
 
         dim_sales_prod_dates = dim_sales_prod.withColumn(
@@ -119,11 +116,6 @@ class TransformingData:
         logging.info(
             "Step 3.3 - Building a new dimension with enriched data from multiple datasets."
         )
-
-        df_1 = df_1.drop("update_timestamp")
-        df_2 = df_2.drop("update_timestamp")
-        df_3 = df_3.drop("update_timestamp")
-
         join_1 = df_1.join(df_2, on="product_id")
         enriched_df = join_1.join(df_3, on="store_id")
 

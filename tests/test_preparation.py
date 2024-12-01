@@ -17,8 +17,9 @@ def spark():
     Create and return a SparkSession for the tests
     """
 
-    return SparkSession.builder.appName("TestSession").getOrCreate()
-
+    return SparkSession.builder \
+        .appName("Test_1Session") \
+        .getOrCreate()
 
 @pytest.fixture
 def data_prep(spark):
@@ -40,25 +41,9 @@ def test_data_handle_nulls(data_prep, spark):
     # Expected DataFrame
     expected_data = [("A", 1)]
     expected_df = spark.createDataFrame(expected_data, ["name", "value"])
+    cleaned_df.show()
+    expected_df.show()
     assert_df_equality(cleaned_df, expected_df)
-
-
-def test_data_drop_duplicates_flag(data_prep, spark):
-    """
-    Test dropping duplicate rows
-    """
-    data = [("A", 1), ("A", 1), ("B", 2)]
-    df = spark.createDataFrame(data, ["name", "value"])
-    df_deduped = data_prep.data_drop_duplicates(
-        df, subset=["name", "value"], action="flag"
-    )
-
-    # Expected DataFrame
-    expected_data = [("A", 1, False), ("B", 2, False)]
-    expected_df = spark.createDataFrame(
-        expected_data, ["name", "value", "is_duplicate"]
-    )
-    assert_df_equality(df_deduped, expected_df)
 
 
 def test_data_enforce_type(data_prep, spark):
@@ -77,5 +62,5 @@ def test_data_enforce_type(data_prep, spark):
 
     # Expected DataFrame
     expected_data = [("A", 1), ("B", 2)]
-    expected_df = spark.createDataFrame(expected_data, ["name", "value"])
+    expected_df = spark.createDataFrame(expected_data, schema)
     assert_df_equality(enforced_df, expected_df)
